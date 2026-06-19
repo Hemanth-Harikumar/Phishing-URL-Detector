@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Scan History</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <a href="/" class="nav-btn">← Back to Scanner</a>
+
+    <h1>📜 Scan History</h1>
+
+    <!-- Summary Card -->
+    <div class="stats-card">
+
+        <h3>📊 Total Scans</h3>
+
+        <div class="total-count">
+            {{ total_scans }}
+        </div>
+
+    </div>
+
+    <table>
+
+        <tr>
+            <th>ID</th>
+            <th>URL</th>
+            <th>Score</th>
+            <th>Level</th>
+            <th>Date</th>
+        </tr>
+
+        {% for scan in scans %}
+
+        <tr>
+
+            <td>{{ scan[0] }}</td>
+
+            <td>{{ scan[1] }}</td>
+
+            <td>{{ scan[2] }}</td>
+
+            <td>
+
+                <span class="risk-level {{ scan[3] }}">
+                    {{ scan[3] }}
+                </span>
+
+            </td>
+
+            <td>{{ scan[4] }}</td>
+
+        </tr>
+
+        {% endfor %}
+
+    </table>
+
+</div>
+
+</body>
+
+</html>

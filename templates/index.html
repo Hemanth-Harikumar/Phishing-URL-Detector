@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Phishing URL Detector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>🔐 Phishing URL Detector</h1>
+
+    <form action="/predict" method="POST">
+
+        <input
+            type="text"
+            name="url"
+            placeholder="Enter URL"
+            required>
+
+        <button type="submit">
+            Check URL
+        </button>
+
+    </form>
+
+    {% if prediction %}
+
+    <h2 class="{% if score >= 50 %}result-danger{% else %}result-safe{% endif %}">
+        {{ prediction }}
+    </h2>
+
+    <h3>
+        Risk Score: {{ score }}/100
+    </h3>
+
+    <h3>
+        Risk Level:
+        <span class="risk-level {{ level }}">
+            {{ level }}
+        </span>
+    </h3>
+
+    <div class="progress-container">
+        <div
+            class="progress-bar"
+            style="
+                width: {{ score }}%;
+                background: {{ bar_color }};
+            ">
+        </div>
+    </div>
+
+    <div class="stats-card">
+
+        <h3>📊 Analysis Summary</h3>
+
+        <p>
+            <strong>Rules Triggered:</strong>
+            {{ rules_triggered }}
+        </p>
+
+        <p>
+            <strong>Risk Score:</strong>
+            {{ score }}/100
+        </p>
+
+        <p>
+            <strong>Risk Level:</strong>
+            {{ level }}
+        </p>
+
+    </div>
+
+    <div class="stats-card">
+
+    <h3>🔍 URL Breakdown</h3>
+
+    <div class="breakdown-item">
+        <span class="breakdown-label">🌐 Protocol</span>
+        <span class="breakdown-value {{ protocol }}">
+            {{ protocol }}
+        </span>
+    </div>
+
+    <div class="breakdown-item">
+        <span class="breakdown-label">📏 Length</span>
+        <span class="breakdown-value">
+            {{ url_length }}
+        </span>
+    </div>
+
+    <div class="breakdown-item">
+        <span class="breakdown-label">🔵 Dots</span>
+        <span class="breakdown-value">
+            {{ dot_count }}
+        </span>
+    </div>
+
+    <div class="breakdown-item">
+         <span class="breakdown-label">🔗 Shortener</span>
+        <span class="breakdown-value">
+           {{ shortener_found }}
+    </span>
+    </div>
+
+    <div class="breakdown-item">
+        <span class="breakdown-label">🚨 Suspicious Words</span>
+        <span class="breakdown-value">
+            {{ found_words | join(', ') if found_words else 'None' }}
+        </span>
+    </div>
+
+</div>
+
+    {% if reasons %}
+    <div class="reasons-box">
+
+        <h3>Reasons Detected:</h3>
+
+        <ul>
+            {% for reason in reasons %}
+            <li>✅ {{ reason }}</li>
+            {% endfor %}
+        </ul>
+
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+    <footer class="footer">
+        Phishing URL Detector • Flask Backend • Python Security Project
+    </footer>
+
+</div>
+
+</body>
+</html>
