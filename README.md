@@ -1,121 +1,255 @@
 # Phishing URL Detector
 
-A Flask app that scores a URL with a hostname-based Random Forest classifier, explains the score (SHAP or feature importance), and keeps a scan history. It is an **academic triage tool**: URL-only, no network lookups, no page content.
+A Flask-based web application that analyzes URLs using a hostname-based Random Forest classifier, explains phishing risk scores, and maintains a scan history using SQLite.
 
-## What changed in this version
-- **Brand-impersonation features** (`ml/brands.py`): brand name in a subdomain (`paypal.com.secure-login.tk`), brand inside an unrelated registrable domain (`secure-chase-banking.com`), and look-alike spellings (`paypa1`, `amaz0n`, `micros0ft`) using leet-normalisation and edit distance against ~45 hand-picked brands.
-- **Small allowlist** of well-known brand domains. Exact registrable-domain match only, and **never** applied to user-content hosts (`sites.google.com`, `*.sharepoint.com`, `github.io`, ...), where phishing is commonly hosted. An allowlisted verdict overrides the model and the UI says so; the raw model score is still shown.
-- **Threshold chosen on a validation split**, not by hand and not on the test split. Training now uses a three-way split grouped by registrable domain (train / validation / test).
-- **Clean holdout** (`data/evaluation/holdout_legitimate.csv`): 146 URLs on 73 domains that were removed from training and scored once.
-- Hostname-only, scheme- and `www`-invariant features (from the previous version) so the model cannot key on dataset artifacts such as `https://www.`.
-- Automated tests, a development-only random secret key when none is configured, and a timeout on the optional LLM call.
+This project is an **academic phishing triage tool**. It analyzes URL and hostname characteristics without fetching the target website, inspecting page content, or performing live network lookups.
 
-## Results (read the limitations below)
-Held-out test split (domain-grouped, scored once, threshold 0.71 chosen on validation with target FPR <= 2%):
+## Features
+
+- **Machine-learning-based risk assessment:** Produces a phishing probability score and classifies URLs according to a configurable threshold.
+- **Brand impersonation detection:** Identifies suspicious brand names in subdomains, unrelated registrable domains, and look-alike spellings. Examples include `paypal.com.secure-login.tk`, `secure-chase-banking.com`, `paypa1`, `amaz0n`, and `micros0ft`.
+- **Domain allowlist:** Recognizes selected well-known brand domains using exact registrable-domain matching. The allowlist is not applied to user-content hosting services such as `sites.google.com`, SharePoint subdomains, and `github.io`.
+- **Hostname-focused features:** Uses 23 hostname-focused features designed to remain invariant to URL scheme and `www` prefixes.
+- **Prediction explanations:** Uses SHAP when supported, with a feature-importance fallback.
+- **Scan history:** Stores scan results in SQLite and provides a history interface.
+- **Optional AI-generated reports:** Supports an optional OpenAI-compatible LLM integration. Without an API key, the application provides a local evidence-based report.
+- **Security hardening:** Implements CSRF protection, request-size limits, security headers, session-cookie settings, and basic in-process rate limiting.
+- **Automated tests:** Includes tests for URL validation, feature extraction, brand impersonation, allowlist behavior, and model-service functionality.
+
+## Technology Stack
+
+- Python
+- Flask
+- Scikit-learn
+- Pandas and NumPy
+- Joblib
+- SQLite
+- HTML and CSS
+- Optional SHAP explanations
+- Optional OpenAI-compatible API integration
+- Waitress for production WSGI serving
+
+## Model Evaluation
+
+The following results were reported for the held-out test split, grouped by registrable domain. The classification threshold of `0.71` was selected using the validation split with a target false-positive rate of at most 2%.
 
 | Metric | Threshold 0.71 | Threshold 0.50 |
-|---|---|---|
+|---|---:|---:|
 | Accuracy | 82.2% | 81.0% |
 | Precision (phishing) | 95.6% | 83.2% |
 | Recall (phishing) | 55.7% | 62.7% |
-| False-positive rate (legitimate flagged) | 1.6% | 7.7% |
-| ROC-AUC | 0.823 | |
+| False-positive rate | 1.6% | 7.7% |
+| ROC-AUC | 0.823 | — |
 
-Legitimate-only checks at the same threshold (these say nothing about recall):
+The higher threshold improves precision and reduces false positives, but it also misses more phishing URLs.
 
-| Set | URLs / domains | False positives (model only) | After allowlist |
+### Legitimate-Only Evaluation
+
+These checks measure false positives on legitimate URLs. They do not measure phishing recall.
+
+| Evaluation set | URLs / domains | False positives before allowlist | After allowlist |
 |---|---|---|---|
-| Clean holdout (domain-disjoint, scored once) | 146 / 73 | 3 (2.1%) | n/a |
-| Development probe (overlaps development) | 280 / 35 | 40 (14.3%), on 14 domains | 28 (10.0%) |
+| Clean holdout, domain-disjoint and scored once | 146 URLs / 73 domains | 3 (2.1%) | Not reported |
+| Development probe, overlapping development data | 280 URLs / 35 domains | 40 (14.3%), across 14 domains | 28 (10.0%) |
+
+The clean holdout is a small, hand-assembled dataset whose domains were removed from training and which was scored once. The development probe overlaps the development process and should not be treated as an independent benchmark.
 
 ## Limitations
-- **Recall is low (about 56% on the test split).** Hostname features alone miss many phishing URLs whose hostnames look ordinary. The threshold trades recall for fewer false alarms. Do not call this a complete detector.
-- **The two legitimate-only sets disagree** (2.1% vs 14.3%). Both are hand-assembled and small, so treat false-positive rates as rough. The probe contains harder security/tech sites and was looked at during development.
-- **No independent phishing benchmark yet.** The test split comes from the same dataset as training. A real evaluation needs a current legitimate list (e.g. Tranco) plus an independent, dated phishing feed (PhishTank/OpenPhish), de-duplicated by registrable domain.
-- **Registrable domains use a small built-in suffix list**, not the full Public Suffix List. The brand list and allowlist are hand-maintained and incomplete.
-- Look-alike matching can false-positive on real words close to a brand name (for example a short word one edit from `apple`). The model weighs it; it is not a hard rule.
-- PhiUSIIL contains dataset artifacts. Earlier versions scored 99.6% by exploiting them; those numbers do not reflect real-world accuracy.
 
-## Quick start (Windows / VS Code)
-Use Python 3.11 or 3.12.
+- **Limited phishing recall:** Recall at threshold `0.71` is approximately 56% on the reported test split. Hostname-only features cannot identify every phishing URL, particularly when malicious hosts have ordinary-looking names.
+- **No independent phishing benchmark yet:** The test split comes from the same underlying dataset used for training. Independent evaluation using a current legitimate-domain list and a separately sourced phishing feed is still needed.
+- **Small, hand-assembled legitimate sets:** The clean holdout and development probe produce different false-positive rates. Their results should be interpreted cautiously.
+- **Incomplete domain handling:** Registrable-domain extraction uses a small built-in suffix list rather than the full Public Suffix List.
+- **Incomplete brand coverage:** The brand list and allowlist are manually maintained and cannot cover every brand or impersonation pattern.
+- **Possible look-alike false positives:** Similarity matching can flag legitimate words that resemble short brand names. These signals contribute to the model rather than acting as definitive rules.
+- **Dataset artifacts:** The PhiUSIIL dataset contains artifacts that can inflate performance if exploited. Earlier versions achieved misleadingly high scores of 99.6%; those results should not be interpreted as real-world accuracy.
+- **No page-content analysis:** The application does not inspect website content, certificates, redirects, or live reputation feeds.
+
+The application should not be considered a complete phishing detector or a security guarantee. Do not use its output as the sole basis for blocking URLs or responding to security incidents.
+
+## Requirements
+
+- Python 3.11 or 3.12 recommended
+- pip
+- Internet access for downloading the training dataset
+- A compatible environment for the Python dependencies
+
+## Installation and Quick Start
+
+The trained model is **not included in this repository**. You must generate it before starting the application.
+
+### 1. Clone the repository
+
+```powershell
+git clone https://github.com/Hemanth-Harikumar/Phishing-URL-Detector.git
+cd Phishing-URL-Detector
+```
+
+### 2. Create and activate a virtual environment
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python app.py
 ```
-Open `http://127.0.0.1:5000`. The trained model is bundled. If PowerShell blocks activation, run `Set-ExecutionPolicy -Scope Process Bypass`.
 
-## Retraining
-The 56 MB PhiUSIIL CSV is not bundled. Download it and retrain:
+If PowerShell blocks activation, run the following command in the current terminal and try activating again:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+### 3. Install dependencies
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+### 4. Generate the trained model
+
+Download the PhiUSIIL dataset through the UCI Machine Learning Repository integration and train the classifier:
 
 ```powershell
 python train_model.py --download-uci
+```
+
+To include the project's curated legitimate URL examples during training, run:
+
+```powershell
 python train_model.py --extra-legitimate data/evaluation/curated_legitimate_training.csv
 ```
-By default the threshold is chosen on a validation split (`--target-fpr 0.02`); pass `--threshold` to fix it. `--max-rows` (default 100000) samples the large source for speed; use `0` for all rows. Training writes `models/phishing_model.joblib`, `reports/training_metrics.json` and `reports/holdout_metrics.json`. Domains in the holdout file are removed from training automatically. Re-score the development probe with `python evaluate_probe_set.py`.
 
-## Optional LLM security reports
-Copy `.env.example` to `.env` and set `OPENAI_API_KEY`, `OPENAI_MODEL` and `FLASK_SECRET_KEY`. Keep `.env` private. Without a key a local evidence-based report is shown. The URL is passed to the LLM as untrusted data and the LLM never changes the verdict.
+The training process generates:
 
-## Architecture
-1. `app.py` validates the URL (no network request).
-2. `ml/url_features.py` extracts 23 hostname-focused, scheme-invariant features.
-3. `ml/brands.py` provides brand-impersonation signals, the registrable-domain helper and the allowlist.
-4. `ml/model_service.py` runs the Random Forest, applies the validation-chosen threshold and the allowlist override.
-5. SHAP explains predictions where supported, otherwise the UI labels a feature-importance fallback.
-6. `ml/reporting.py` builds the local or optional LLM report. History is stored in SQLite.
+- `models/phishing_model.joblib`
+- `reports/training_metrics.json`
+- `reports/holdout_metrics.json`
 
-## Tests
-```powershell
-python -m unittest discover -s tests -v
-```
-25 tests cover feature extraction and schema, brand/allowlist logic (including user-content hosts), model behaviour (allowlist override, impersonation patterns, scheme/`www` invariance) and app helpers.
+The raw PhiUSIIL CSV is not bundled in the repository. The dataset download requires network access and the `ucimlrepo` dependency specified by the project.
 
-## Dataset citation
-Prasad, A. & Chandra, S. (2024). *PhiUSIIL: Phishing URL (Website) Dataset*. UCI Machine Learning Repository. https://doi.org/10.1016/j.cose.2023.103545. License: CC BY 4.0. See `LICENSE-DATASET.txt`.
+### 5. Start the application
 
-## Safe use
-Not a security guarantee. Do not use the output as the sole basis for blocking a URL or handling an incident. For public deployment set `APP_ENV=production`, provide a persistent `FLASK_SECRET_KEY` of at least 32 characters, enable HTTPS and `COOKIE_SECURE=1`, and run behind a production WSGI server. CSRF protection and basic in-process rate limiting are implemented; the latter should be replaced with shared storage for multi-worker deployments.
-
-## v5.1 maintenance update
-
-- Fixed suspicious-host keyword normalization: only an exact leading `www.` is removed, so hostnames such as `wallet.com` are no longer accidentally altered by character-set stripping.
-- Moved URL validation and risk-label helpers into `ml/web_helpers.py` so they can be tested without importing the Flask web server.
-- Added regression tests for suspicious-host keyword normalization.
-- The automated test suite currently passes in the review environment. The Flask web interface still needs an end-to-end run in an environment with the dependencies from `requirements.txt` installed.
-
-Run tests with:
-
-```bash
-python -m pip install -r requirements.txt
-python -m pytest -q
-```
-
-For local use, start the app with `python app.py` and open `http://127.0.0.1:5000`.
-
-
-## Production configuration (Windows / PowerShell)
-
-The app now refuses to start in production mode without a persistent secret key. Generate one once and store it securely as an environment variable; do not commit it to Git:
+After the model has been generated successfully, run:
 
 ```powershell
-python -c "import secrets; print(secrets.token_hex(32))"
-$env:APP_ENV = "production"
-$env:FLASK_SECRET_KEY = "paste-the-generated-value-here"
-$env:COOKIE_SECURE = "1"
-$env:PORT = "8080"
 python app.py
 ```
 
-Use `COOKIE_SECURE=1` only when the app is accessed through HTTPS. For local HTTP testing, leave `COOKIE_SECURE` unset/`0`; browsers will not send Secure cookies over plain HTTP. In production, terminate HTTPS at a trusted reverse proxy or hosting platform. The built-in production startup uses Waitress, which is included in `requirements.txt`. Never use the Flask development server for public traffic. Keep `.env` and secret values out of version control.
+Open the application in your browser:
 
-For multi-worker or multi-instance deployments, replace the in-memory rate limiter with a shared backend such as Redis and configure trusted proxy handling deliberately. Do not trust arbitrary forwarded client-IP headers.
+`http://127.0.0.1:5000`
 
-## v5.2 hardening and final verification notes
-- Added a session-bound CSRF token to the scan form and reject POST requests with missing/invalid tokens.
-- Added baseline security headers, HTTP-only/SameSite session cookies, configurable Secure cookies for HTTPS, and a request-size limit.
-- Fixed the missing `urlsplit` import used by the `/predict` route when building URL analysis details.
-- The built-in Flask server is for local development only. For public deployment, set a strong persistent `FLASK_SECRET_KEY`, set `COOKIE_SECURE=1` behind HTTPS, and use a production WSGI server.
-- Live browser testing is still required after installing dependencies; unit/model tests alone do not certify production readiness.
+The application creates or uses its SQLite database for scan history.
+
+## Retraining Options
+
+The training script supports additional options for evaluation and threshold selection.
+
+| Option | Purpose |
+|---|---|
+| `--download-uci` | Download the PhiUSIIL dataset through `ucimlrepo` |
+| `--data PATH` | Specify a local CSV containing URL and label columns |
+| `--threshold VALUE` | Set a fixed classification threshold |
+| `--target-fpr VALUE` | Set the target validation false-positive rate |
+| `--max-rows NUMBER` | Limit the number of source rows used for training; default is 100,000 |
+| `--max-rows 0` | Use all available source rows |
+| `--extra-legitimate PATH` | Include curated legitimate URLs in training |
+| `--holdout PATH` | Specify the legitimate-only holdout CSV |
+
+By default, the threshold is selected using the validation split with a target false-positive rate of 2%. The test split and clean holdout are not used to select the threshold.
+
+To evaluate the development probe after training, run:
+
+```powershell
+python evaluate_probe_set.py
+```
+
+Review the generated reports carefully. The development probe overlaps the development process and is not an independent benchmark.
+
+## Optional AI-Generated Security Reports
+
+The application can optionally use an OpenAI-compatible API to generate security reports.
+
+1. Copy `.env.example` to `.env`.
+2. Set `OPENAI_API_KEY` to your own API key if you want to enable the integration.
+3. Configure `OPENAI_MODEL` as needed.
+4. Set a suitable `FLASK_SECRET_KEY` for your environment.
+
+Keep `.env` private and never commit it to Git.
+
+Without an API key, the application uses its local evidence-based reporting functionality. The URL is treated as untrusted input, and the LLM does not determine or override the model's verdict.
+
+## Architecture
+
+1. **`app.py`** validates input URLs and handles web requests without fetching the target website.
+2. **`ml/url_features.py`** extracts 23 hostname-focused features.
+3. **`ml/brands.py`** implements brand-impersonation signals, registrable-domain handling, and the domain allowlist.
+4. **`ml/model_service.py`** loads the trained Random Forest model, generates predictions, applies the configured threshold, and handles allowlist overrides.
+5. **SHAP or feature importance** provides prediction explanations, depending on availability and compatibility.
+6. **`ml/reporting.py`** generates local or optional LLM-assisted reports.
+7. **SQLite** stores scan history for later review.
+
+The allowlist can override the final verdict for selected domains, while the raw model score remains visible. User-content hosting domains are excluded from this allowlist override.
+
+## Testing
+
+Run the automated test suite:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+The current local verification run passed **28 tests** covering:
+
+- URL validation and risk-label boundaries
+- Hostname feature extraction and schema consistency
+- Brand impersonation and look-alike detection
+- Registrable-domain and allowlist behavior
+- User-content host handling
+- Model prediction shape and probability output
+- Scheme and `www` invariance
+- Application helper functions
+
+These unit tests verify implemented behavior but do not establish production readiness or guarantee real-world detection accuracy.
+
+## Dataset Attribution
+
+This project uses the PhiUSIIL Phishing URL (Website) Dataset.
+
+Prasad, A. & Chandra, S. (2024). *PhiUSIIL: Phishing URL (Website) Dataset*. UCI Machine Learning Repository.
+
+https://doi.org/10.1016/j.cose.2023.103545
+
+Dataset license: Creative Commons Attribution 4.0 International (CC BY 4.0). See [`LICENSE-DATASET.txt`](LICENSE-DATASET.txt) for attribution and licensing information.
+
+## Security and Production Configuration
+
+The Flask development server is intended for local development only.
+
+For a production deployment:
+
+- Set `APP_ENV=production`.
+- Configure a persistent, randomly generated `FLASK_SECRET_KEY` of at least 32 characters.
+- Serve the application through HTTPS and set `COOKIE_SECURE=1`.
+- Use the production WSGI server configuration provided by the application, including Waitress where applicable.
+- Keep API keys and secret values out of version control.
+- Replace the in-process rate limiter with shared storage, such as Redis, when deploying multiple workers or instances.
+- Configure trusted proxy handling deliberately; do not trust arbitrary forwarded client-IP headers.
+
+Generate a secret key with:
+
+```powershell
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Set the generated value securely in your deployment environment. Do not paste it into source code or commit it to Git.
+
+For local HTTP testing, leave `COOKIE_SECURE` unset or set it to `0`. Use `COOKIE_SECURE=1` only when the application is accessed through HTTPS.
+
+The application implements CSRF protection, baseline security headers, HTTP-only and SameSite session-cookie settings, configurable Secure cookies, request-size limits, and basic in-process rate limiting. These safeguards do not by themselves make an application production-ready.
+
+## Responsible Use
+
+This project is intended for academic demonstration, learning, and preliminary phishing-risk triage. It has known limitations and has not been independently validated against a current, representative phishing benchmark.
+
+Do not treat a low risk score as proof that a URL is safe. Use additional security controls and independent threat-intelligence sources when making consequential decisions.
