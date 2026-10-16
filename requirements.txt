@@ -1,1 +1,10 @@
-Flask
+Flask>=3.0,<4.0
+numpy>=2.0,<3.0
+pandas>=2.2,<3.0
+scikit-learn>=1.8,<1.9
+joblib>=1.4,<2.0
+shap>=0.50,<1.0
+ucimlrepo>=0.0.7
+openai>=1.30
+python-dotenv>=1.0
+waitress>=3.0,<4.0

@@ -1,0 +1,11 @@
+{
+  "dataset": "holdout_legitimate.csv (hand-assembled, legitimate-only, domains removed from training; scored once)",
+  "samples": 146,
+  "domains": 73,
+  "threshold": 0.71,
+  "false_positives": 3,
+  "false_positive_rate": 0.02054794520547945,
+  "needs_review_rate": 0.0136986301369863,
+  "median_phishing_probability": 0.2209996780210445,
+  "note": "Legitimate-only: says nothing about phishing recall."
+}

@@ -1,70 +1,64 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>Scan History</title>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scan History</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-
 <div class="container">
 
-    <a href="/" class="nav-btn">← Back to Scanner</a>
-
+  <!-- ── Navigation ─────────────────────────────────────────────────── -->
+  <div class="top-nav">
     <h1>📜 Scan History</h1>
+    <a href="{{ url_for('home') }}" class="nav-btn">← Back to Scanner</a>
+  </div>
 
-    <!-- Summary Card -->
-    <div class="stats-card">
+  <!-- ── Total-scans summary ────────────────────────────────────────── -->
+  <div class="stats-card">
+    <h3>📊 Total scans</h3>
+    <div class="total-count">{{ total_scans }}</div>
+  </div>
 
-        <h3>📊 Total Scans</h3>
-
-        <div class="total-count">
-            {{ total_scans }}
-        </div>
-
-    </div>
-
-    <table>
-
-        <tr>
+  <!-- ── Scans table ────────────────────────────────────────────────── -->
+  {% if scans %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
             <th>ID</th>
             <th>URL</th>
-            <th>Score</th>
+            <th>Model score</th>
+            <th>Verdict</th>
             <th>Level</th>
             <th>Date</th>
-        </tr>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in scans %}
+            <tr>
+              <td>{{ scan[0] }}</td>
+              <td class="url-cell">{{ scan[1] }}</td>
+              <td>
+                {{ scan[2] }}/100
+                {% if scan[6] is not none %}
+                  <br><small>{{ '%.1f' | format((scan[6] or 0) * 100) }}% probability</small>
+                {% endif %}
+              </td>
+              <td>{{ scan[5] or 'Legacy scan' }}</td>
+              <td><span class="risk-level {{ scan[3] }}">{{ scan[3] }}</span></td>
+              <td>{{ scan[4] }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No scans recorded yet.</p>
+  {% endif %}
 
-        {% for scan in scans %}
-
-        <tr>
-
-            <td>{{ scan[0] }}</td>
-
-            <td>{{ scan[1] }}</td>
-
-            <td>{{ scan[2] }}</td>
-
-            <td>
-
-                <span class="risk-level {{ scan[3] }}">
-                    {{ scan[3] }}
-                </span>
-
-            </td>
-
-            <td>{{ scan[4] }}</td>
-
-        </tr>
-
-        {% endfor %}
-
-    </table>
-
+  <footer class="footer">Stored locally in phishing.db</footer>
 </div>
-
 </body>
-
 </html>

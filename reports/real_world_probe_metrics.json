@@ -1,0 +1,15 @@
+{
+  "dataset": "Curated legitimate URL probe set (hand-assembled; not Tranco and not a representative benchmark)",
+  "samples": 280,
+  "threshold": 0.71,
+  "false_positives": 40,
+  "false_positive_rate": 0.14285714285714285,
+  "false_positives_with_allowlist": 28,
+  "false_positive_rate_with_allowlist": 0.1,
+  "distinct_domains": 35,
+  "distinct_domains_flagged_model_only": 14,
+  "development_note": "This probe overlaps the development process (earlier thresholds were chosen while looking at it). Prefer reports/holdout_metrics.json, which is domain-disjoint and scored once.",
+  "median_phishing_probability": 0.3736840460173908,
+  "p95_phishing_probability": 0.8869993782876578,
+  "note": "Legitimate-only development smoke test; it does not estimate phishing recall or overall real-world accuracy. Use Tranco plus an independently sourced phishing feed for a proper external benchmark."
+}

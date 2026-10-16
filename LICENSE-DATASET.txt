@@ -1,0 +1,8 @@
+Dataset attribution — PhiUSIIL Phishing URL (Website) Dataset
+
+Prasad, A. & Chandra, S. (2024). PhiUSIIL: Phishing URL (Website) Dataset.
+UCI Machine Learning Repository.
+https://doi.org/10.1016/j.cose.2023.103545
+
+Dataset license: Creative Commons Attribution 4.0 International (CC BY 4.0).
+The included CSV is redistributed under the dataset's stated license. The application source code is separate from the dataset.

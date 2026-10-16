@@ -1,3 +1,10 @@
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+venv/
+.env
 phishing.db
+models/*.joblib
+models/*.pkl
+data/raw/*.csv
+reports/training_metrics.json
